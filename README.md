@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Welcome to your new TanStack Start app! 
 
 # Getting Started
@@ -202,3 +203,7 @@ Files prefixed with `demo` can be safely deleted. They are there to provide a st
 You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
 
 For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+=======
+# PPTfy
+AI-powered tool that instantly transforms markdown, text, or prompts into beautiful presentation slides.
+>>>>>>> 96b510bf2924d1c7a26a2ff99dff03b45fec3a31
