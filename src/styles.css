@@ -35,6 +35,14 @@
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
 
+.glass{
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
 .dark {
   /* Dark mode: zinc base with peach accent */
   --background: oklch(0.12 0.01 250);
