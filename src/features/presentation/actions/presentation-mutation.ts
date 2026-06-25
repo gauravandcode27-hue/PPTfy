@@ -6,30 +6,50 @@ import { generateSlug } from "random-word-slugs"
 import { PresentationStatus } from "#/generated/prisma/enums";
 
 
-
-
 export const createPresentation = createServerFn({ method: "POST" })
     .validator((data: unknown) => createPresentationInputSchema.parse(data))
     .middleware([authFnMiddleware])
     .handler(async ({ data, context }) => {
         const userId = context?.session?.user?.id
-
-        const presentation = await prisma.presentation.create(
-          {  data, 
-            userId,
-            title: generateSlug(),
-            prompt: data.prompt,
-            slideCount: data.prompt,
-            style: data.style,
-            tone: data.tone,
-            layout: data.layout,
-            status: PresentationStatus.COMPLETED,
-        },
-        );
-
+        
+        const presentation = await prisma.presentation.create({
+            data: {
+                userId,
+                title: generateSlug(),
+                prompt: data.prompt,
+                slideCount: data.slideCount,
+                style: data.style,
+                tone: data.tone,
+                layout: data.layout,
+                status: PresentationStatus.COMPLETED,
+              
+            },
+           
+        })
+    
         //todo: inngest background job
 
         return presentation;
+    })
+
+export const getPresentation = createServerFn({ method: "GET" })
+    .validator((data: unknown) => presentationIdInputSchema.parse(data))
+    .middleware([authFnMiddleware])
+    .handler(async ({ data, context }) => {
+        const userId = context?.session?.user?.id
+
+        const presentation = await prisma.presentation.findFirst({
+            where: { id: data.id, userId },
+            include: {
+                slides: {
+                    orderBy: { order: 'asc' },
+                },
+            },
+        })
+
+        if (!presentation) throw new Error('Not Found')
+
+        return presentation
     })
 
 
