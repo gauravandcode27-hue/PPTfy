@@ -17,11 +17,12 @@ import { Textarea } from '#/components/ui/textarea'
 import { Label } from '#/components/ui/label'
 import { Button } from '#/components/ui/button'
 import { Wand2 } from 'lucide-react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createPresentation } from '#/features/presentation/actions/presentation-mutation'
 import { presentationQueryKeys } from '#/features/presentation/hooks/query-keys'
 import { toast } from 'sonner'
-
+import { listPresentations } from '#/features/presentation/actions/presentation-query'
+import { PresentationListSection } from '#/features/presentation/components/presentation-list-section'
 
 type HomeFormState = {
   content: string
@@ -56,6 +57,11 @@ function Home() {
     style: 'minimal',
     tone: 'formal',
     layout: 'balanced',
+  })
+
+  const {data: presentations=[], isPending:listPending} = useQuery({
+    queryKey:presentationQueryKeys.list(),
+    queryFn:()=>listPresentations()
   })
 
   const createMut = useMutation({
@@ -96,7 +102,10 @@ function Home() {
   return (
     <main className='min-h-screen pt-24 pb-12 px-4'>
       <div className='max-w-4xl mx-auto'>
-        {/* todo: presentation section */}
+        <PresentationListSection 
+         presentations={presentations}
+         isPending={listPending}
+        />
         <div className="text-center mb-10">
           <h1 className="text-4xl md:text-5xl font-bold mb-3">
             What do you want to create?

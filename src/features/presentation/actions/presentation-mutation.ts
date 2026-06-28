@@ -4,7 +4,23 @@ import { authFnMiddleware } from "#/middleware/auth";
 import { prisma } from "#/lib/db";
 import { generateSlug } from "random-word-slugs"
 import { PresentationStatus } from "#/generated/prisma/enums";
+import { inngest } from "#/integrations/tanstack-query/inngest/client";
+import { generatePresentationContentInline } from "#/integrations/tanstack-query/inngest/function";
 
+async function triggerPresentationGeneration(presentationId: string) {
+    try {
+        await inngest.send({
+            name: "presentation/generate",
+            data: { presentationId }
+        });
+    } catch (error) {
+        console.warn(`Inngest dispatch failed for presentation ${presentationId}, falling back to inline generation:`, error);
+        // Fire-and-forget promise to generate slides in the background
+        generatePresentationContentInline(presentationId).catch((err) => {
+            console.error(`Failed during inline slide generation fallback for presentation ${presentationId}:`, err);
+        });
+    }
+}
 
 export const createPresentation = createServerFn({ method: "POST" })
     .validator((data: unknown) => createPresentationInputSchema.parse(data))
@@ -21,13 +37,11 @@ export const createPresentation = createServerFn({ method: "POST" })
                 style: data.style,
                 tone: data.tone,
                 layout: data.layout,
-                status: PresentationStatus.COMPLETED,
-              
+                status: PresentationStatus.GENERATING,
             },
-           
         })
-    
-        //todo: inngest background job
+
+        await triggerPresentationGeneration(presentation.id);
 
         return presentation;
     })
@@ -115,5 +129,8 @@ export const regeneratePresentation = createServerFn({ method: "POST" })
                 status: PresentationStatus.GENERATING
             },
         });
+
+        await triggerPresentationGeneration(data.id);
+
         return { ok: true as const }
     })

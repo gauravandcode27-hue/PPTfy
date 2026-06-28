@@ -44,6 +44,8 @@ import {
   TONE_OPTIONS,
 } from '#/features/presentation/constants/presentation-option'
 import { useFullscreen } from "#/features/presentation/hooks/use-fullscreen";
+import { SlideshowModal } from "#/features/presentation/components/slideshow-modal";
+
 
 export const Route = createFileRoute("/presentation/$presentationId")({
   component: RouteComponent,
@@ -390,7 +392,7 @@ function RouteComponent() {
                     size="icon"
                     className={`absolute top-3 right-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity ${isFullscreen ? 'opacity-100' : ''
                       }`}
-                    onClick={()=>{}}
+                    onClick={toggleFullscreen}
                   >
                     <Maximize className="size-4" />
                   </Button>
@@ -480,6 +482,16 @@ function RouteComponent() {
 
 
       </div>
+
+    {
+      showSlideShow && (
+        <SlideshowModal
+        slides={slides}
+        initialIndex={activeSlideIndex}
+        onClose={() =>setShowSlideshow(false)}
+        />
+      )
+    }
 
     </main>
   )

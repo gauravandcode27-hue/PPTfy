@@ -18,3 +18,7 @@ AI-powered tool that instantly transforms markdown, text, or prompts into beauti
 - **Framework**: TanStack Start
 - **Styling**: Tailwind CSS
 - **AI Integration**: AI-powered text-to-presentation transformation
+
+## For Inngest local server
+- npx inngest-cli@latest dev 
+- npx inngest-cli@latest dev -u http://localhost:3000/api/inngest
