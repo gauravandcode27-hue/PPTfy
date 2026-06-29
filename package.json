@@ -84,5 +84,8 @@
       "esbuild",
       "lightningcss"
     ]
+  },
+  "overrides": {
+    "@noble/ciphers": "^2.2.0"
   }
 }

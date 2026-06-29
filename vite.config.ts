@@ -11,4 +11,4 @@ const config = defineConfig({
   plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
 })
 
-export default config
+export default config;
