@@ -5,7 +5,37 @@ import { Output, generateText } from "ai";
 import { createGoogle } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createXai } from "@ai-sdk/xai";
+import { eventType, NonRetriableError } from "inngest";
 import { PresentationStatus } from "#/generated/prisma/enums";
+
+// This schema is used only internally for parsing; we do NOT attach it to
+// the eventType so that Inngest's SDK-level schema validation doesn't reject
+// old events that used `id` instead of `presentationId`, or events replayed
+// from the Inngest dashboard that may have a different shape.
+const presentationGenerateDataSchema = z.object({
+  presentationId: z.string().min(1),
+});
+
+export const presentationGenerateEvent = eventType("presentation/generate");
+
+function parsePresentationId(data: unknown): string {
+  const parsed = presentationGenerateDataSchema.safeParse(data);
+  if (parsed.success) {
+    return parsed.data.presentationId;
+  }
+
+  // Backwards compatibility if an event was sent with `id` instead.
+  if (data && typeof data === "object" && "id" in data) {
+    const id = (data as { id?: unknown }).id;
+    if (typeof id === "string" && id.trim()) {
+      return id.trim();
+    }
+  }
+
+  throw new NonRetriableError(
+    "presentation/generate event requires a non-empty presentationId",
+  );
+}
 
 const slideSchema = z
   .object({
@@ -160,14 +190,19 @@ export async function performSlideGeneration({
 
 // Inline / In-process slide generation fallback
 export async function generatePresentationContentInline(presentationId: string) {
+  const id = presentationId?.trim();
+  if (!id) {
+    throw new Error("Cannot generate presentation: missing presentation ID");
+  }
+
   try {
     const presentation = await prisma.presentation.findUnique({
-      where: { id: presentationId }
+      where: { id }
     });
     if (!presentation) throw new Error("Presentation not found");
 
     await prisma.presentation.update({
-      where: { id: presentationId },
+      where: { id },
       data: { status: PresentationStatus.GENERATING }
     });
 
@@ -175,7 +210,7 @@ export async function generatePresentationContentInline(presentationId: string) 
     await performSlideGeneration({ presentation, model });
 
     await prisma.presentation.update({
-      where: { id: presentationId },
+      where: { id },
       data: { status: PresentationStatus.COMPLETED }
     });
 
@@ -183,9 +218,9 @@ export async function generatePresentationContentInline(presentationId: string) 
   } catch (error) {
     console.error("Failed to generate presentation in-process:", error);
     await prisma.presentation.update({
-      where: { id: presentationId },
+      where: { id },
       data: { status: PresentationStatus.FAILED }
-    });
+    }).catch(() => {});
     throw error;
   }
 }
@@ -193,23 +228,26 @@ export async function generatePresentationContentInline(presentationId: string) 
 export const generatePresentation = inngest.createFunction({
   id: "generate-presentation",
   retries: 2,
-  triggers: [{ event: "presentation/generate" }]
+  triggers: [{
+    event: presentationGenerateEvent,
+    if: 'event.data.presentationId != null && event.data.presentationId != ""',
+  }],
 },
   async ({ event, step }) => {
-    const { presentationId } = event.data as { presentationId: string }
+    const presentationId = parsePresentationId(event.data);
 
     const presentation = await step.run("fetch-presentation", async () => {
-      const p = await prisma?.presentation.findUnique({
-        where: { id: presentationId }
+      const p = await prisma.presentation.findUnique({
+        where: { id: presentationId },
       });
-      if (!p) throw new Error("Presentation not found");
+      if (!p) throw new NonRetriableError(`Presentation not found: ${presentationId}`);
       return p;
     });
 
     await step.run("mark-generating", async () => {
-      await prisma?.presentation.update({
+      await prisma.presentation.update({
         where: { id: presentation.id },
-        data: { status: PresentationStatus.GENERATING }
+        data: { status: PresentationStatus.GENERATING },
       });
     });
 
@@ -220,7 +258,7 @@ export const generatePresentation = inngest.createFunction({
 
     await step.run("mark-completed", async () => {
       await prisma.presentation.update({
-        where: { id: presentationId },
+        where: { id: presentation.id },
         data: { status: PresentationStatus.COMPLETED },
       });
     });

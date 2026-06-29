@@ -5,19 +5,24 @@ import { prisma } from "#/lib/db";
 import { generateSlug } from "random-word-slugs"
 import { PresentationStatus } from "#/generated/prisma/enums";
 import { inngest } from "#/integrations/tanstack-query/inngest/client";
-import { generatePresentationContentInline } from "#/integrations/tanstack-query/inngest/function";
 
 async function triggerPresentationGeneration(presentationId: string) {
+    const id = presentationId?.trim();
+    if (!id) {
+        throw new Error("Cannot trigger slide generation: missing presentation ID");
+    }
+
     try {
-        await inngest.send({
-            name: "presentation/generate",
-            data: { presentationId }
-        });
+        await inngest.send({ name: "presentation/generate", data: { presentationId: id } });
     } catch (error) {
-        console.warn(`Inngest dispatch failed for presentation ${presentationId}, falling back to inline generation:`, error);
-        // Fire-and-forget promise to generate slides in the background
-        generatePresentationContentInline(presentationId).catch((err) => {
-            console.error(`Failed during inline slide generation fallback for presentation ${presentationId}:`, err);
+        console.warn(`Inngest dispatch failed for presentation ${id}, falling back to inline generation:`, error);
+        // Dynamic import keeps AI/Inngest Node-only modules out of the client bundle.
+        import("#/integrations/tanstack-query/inngest/function").then(({ generatePresentationContentInline }) => {
+            generatePresentationContentInline(id).catch((err: unknown) => {
+                console.error(`Failed during inline slide generation fallback for presentation ${id}:`, err);
+            });
+        }).catch((err: unknown) => {
+            console.error(`Could not load inline generation module for presentation ${id}:`, err);
         });
     }
 }
